@@ -1,0 +1,65 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Environment
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+coverage/
+.coverage
+htmlcov/
+.pytest_cache/
+.nyc_output/
+
+# Frontend specific
+frontend/.vite/
+frontend/dist/
+
+# Backend specific
+backend/.mypy_cache/
+backend/.ruff_cache/
+
+# Workers
+workers/*.pth
+workers/*.onnx
+
+# Uploads (local dev)
+uploads/
+outputs/
+
+# Secrets
+*.pem
+*.key
+credentials.json
