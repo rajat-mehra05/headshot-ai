@@ -15,9 +15,11 @@ const statusConfig: Record<JobStatus, { icon: typeof CheckCircle; className: str
 
 interface JobCardProps {
   job: Job
+  onDownload?: (jobId: string) => void
+  onDelete?: (jobId: string) => void
 }
 
-export function JobCard({ job }: JobCardProps) {
+export function JobCard({ job, onDownload, onDelete }: JobCardProps) {
   const status = statusConfig[job.status]
   const StatusIcon = status.icon
 
@@ -68,12 +70,23 @@ export function JobCard({ job }: JobCardProps) {
       <CardContent className="pt-0">
         <div className="flex gap-2">
           {job.status === 'completed' && (
-            <Button size="sm" className="flex-1 gap-1">
+            <Button
+              size="sm"
+              className="flex-1 gap-1"
+              onClick={() => onDownload?.(job.id)}
+              aria-label="Download headshot"
+            >
               <Download className="h-3 w-3" />
               Download
             </Button>
           )}
-          <Button size="sm" variant="outline" className="gap-1">
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1"
+            onClick={() => onDelete?.(job.id)}
+            aria-label="Delete job"
+          >
             <Trash2 className="h-3 w-3" />
           </Button>
         </div>

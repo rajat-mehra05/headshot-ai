@@ -1,14 +1,30 @@
 import { Navigate } from 'react-router-dom'
 import { useUser as useClerkUser } from '@clerk/clerk-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
 import { JobCard } from '@/components/history/JobCard'
-import { useJobs } from '@/hooks/useJobs'
+import { useJobs, useDownloadImage, useDeleteJob } from '@/hooks/useJobs'
 
 export default function HistoryPage() {
   const { isSignedIn, isLoaded } = useClerkUser()
   const { data: jobs, isLoading } = useJobs()
+  const downloadImage = useDownloadImage()
+  const deleteJob = useDeleteJob()
+
+  const handleDownload = (jobId: string) => {
+    downloadImage.mutate(jobId, {
+      onError: () => toast.error('Failed to download image'),
+    })
+  }
+
+  const handleDelete = (jobId: string) => {
+    deleteJob.mutate(jobId, {
+      onSuccess: () => toast.success('Job deleted'),
+      onError: () => toast.error('Failed to delete job'),
+    })
+  }
 
   if (!isLoaded) {
     return (
@@ -45,7 +61,12 @@ export default function HistoryPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {jobs.map((job) => (
-            <JobCard key={job.id} job={job} />
+            <JobCard
+              key={job.id}
+              job={job}
+              onDownload={handleDownload}
+              onDelete={handleDelete}
+            />
           ))}
         </div>
       )}

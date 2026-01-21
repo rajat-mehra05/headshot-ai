@@ -1,3 +1,4 @@
+import { Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
@@ -12,6 +13,25 @@ export function JobResultSuccess({
   processingTimeMs,
   onStartOver,
 }: JobResultSuccessProps) {
+  const handleDownload = async () => {
+    if (!outputImagePath) return
+
+    try {
+      const response = await fetch(outputImagePath)
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `headshot-${Date.now()}.png`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch {
+      window.open(outputImagePath, '_blank')
+    }
+  }
+
   return (
     <div className="max-w-2xl mx-auto space-y-8">
       <Card>
@@ -38,7 +58,15 @@ export function JobResultSuccess({
             <Button variant="outline" onClick={onStartOver}>
               Create Another
             </Button>
-            <Button className="flex-1">Download</Button>
+            <Button
+              className="flex-1 gap-2"
+              onClick={handleDownload}
+              disabled={!outputImagePath}
+              aria-label="Download headshot"
+            >
+              <Download className="h-4 w-4" />
+              Download
+            </Button>
           </div>
         </CardContent>
       </Card>
