@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom'
 import { SignIn, SignUp } from '@clerk/clerk-react'
+import { Toaster } from 'sonner'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { useUser } from '@/hooks/useUser'
@@ -17,6 +18,7 @@ function App() {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <Toaster position="top-center" richColors />
       <Header />
       <main className="flex-1 container mx-auto px-4 py-6">
         <Routes>

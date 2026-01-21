@@ -2,10 +2,12 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { SignedIn, SignedOut, UserButton } from '@clerk/clerk-react'
 import { Button } from '@/components/ui/button'
 import { BalanceDisplay } from '@/components/credits/BalanceDisplay'
+import { useCredits } from '@/hooks/useUser'
 
 export function Header() {
   const location = useLocation()
   const navigate = useNavigate()
+  const { credits } = useCredits()
 
   const handlePricingClick = () => {
     if (location.pathname === '/') {
@@ -41,7 +43,7 @@ export function Header() {
                 Buy Credits
               </Button>
             </Link>
-            <BalanceDisplay />
+            <BalanceDisplay balance={credits} />
             <UserButton afterSignOutUrl="/" />
           </SignedIn>
 
