@@ -5,11 +5,13 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { BalanceDisplay } from '@/components/credits/BalanceDisplay'
 import { useJobs } from '@/hooks/useJobs'
+import { useCredits } from '@/hooks/useUser'
 import { Spinner } from '@/components/ui/spinner'
 
 export default function DashboardPage() {
   const { isSignedIn, isLoaded } = useClerkUser()
   const { data: jobs, isLoading: jobsLoading } = useJobs()
+  const { credits } = useCredits()
 
   if (!isLoaded) {
     return (
@@ -42,7 +44,7 @@ export default function DashboardPage() {
             <Coins className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <BalanceDisplay className="text-2xl" showLabel={false} />
+            <BalanceDisplay balance={credits} className="text-2xl" showLabel={false} />
             <p className="text-xs text-muted-foreground mt-1">
               <Link to="/pricing" className="text-primary hover:underline">
                 Buy more credits

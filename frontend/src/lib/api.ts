@@ -18,16 +18,20 @@ type RequestOptions = {
   body?: unknown
   headers?: Record<string, string>
   token?: string | null
+  signal?: AbortSignal
 }
 
 export class ApiError extends Error {
-  constructor(
-    public status: number,
-    public statusText: string,
-    public data?: unknown
-  ) {
+  status: number
+  statusText: string
+  data?: unknown
+
+  constructor(status: number, statusText: string, data?: unknown) {
     super(`API Error: ${status} ${statusText}`)
     this.name = 'ApiError'
+    this.status = status
+    this.statusText = statusText
+    this.data = data
   }
 }
 
@@ -35,7 +39,7 @@ export async function apiFetch<T>(
   endpoint: string,
   options: RequestOptions = {}
 ): Promise<T> {
-  const { method = 'GET', body, headers = {}, token } = options
+  const { method = 'GET', body, headers = {}, token, signal } = options
 
   const requestHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -50,6 +54,7 @@ export async function apiFetch<T>(
     method,
     headers: requestHeaders,
     body: body ? JSON.stringify(body) : undefined,
+    signal,
   })
 
   if (!response.ok) {
@@ -84,11 +89,12 @@ export const api = {
 
   // Validation endpoints
   validate: {
-    image: (token: string, imagePath: string) =>
+    image: (token: string, imagePath: string, options?: { signal?: AbortSignal }) =>
       apiFetch<ValidationResult>('/api/v1/validate', {
         method: 'POST',
         token,
         body: { image_path: imagePath },
+        signal: options?.signal,
       }),
   },
 

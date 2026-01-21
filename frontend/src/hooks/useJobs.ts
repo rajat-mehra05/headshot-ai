@@ -72,3 +72,42 @@ export function useCancelJob() {
     },
   })
 }
+
+export function useDownloadImage() {
+  const { getToken } = useAuth()
+
+  return useMutation({
+    mutationFn: async (jobId: string) => {
+      const token = await getToken()
+      if (!token) throw new Error('No auth token')
+      const { url } = await api.images.getDownloadUrl(token, jobId)
+
+      const response = await fetch(url)
+      const blob = await response.blob()
+      const objectUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = objectUrl
+      a.download = `headshot-${jobId}.png`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(objectUrl)
+    },
+  })
+}
+
+export function useDeleteJob() {
+  const { getToken } = useAuth()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (jobId: string) => {
+      const token = await getToken()
+      if (!token) throw new Error('No auth token')
+      return api.images.delete(token, jobId)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['jobs'] })
+    },
+  })
+}

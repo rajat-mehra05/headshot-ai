@@ -1,27 +1,37 @@
 import { useMutation } from '@tanstack/react-query'
 import { useAuth } from '@clerk/clerk-react'
-import { api } from '@/lib/api'
-import { useAppStore } from '@/stores/appStore'
+import { api, type ValidationResult } from '@/lib/api'
 
-export function useUpload() {
+interface UploadProgress {
+  imageId: string
+  progress: number
+}
+
+interface UploadResult {
+  imageId: string
+  filePath: string
+}
+
+interface UseUploadOptions {
+  onProgress?: (progress: UploadProgress) => void
+  onSuccess?: (result: UploadResult) => void
+  onError?: (imageId: string, error: Error) => void
+}
+
+/**
+ * Hook for uploading a single image file
+ * Returns a mutation that can be called with file and imageId
+ */
+export function useUpload(options: UseUploadOptions = {}) {
   const { getToken } = useAuth()
-  const {
-    upload,
-    setIsUploading,
-    setUploadProgress,
-    setUploadedPath,
-  } = useAppStore()
+  const { onProgress, onSuccess, onError } = options
 
   return useMutation({
-    mutationFn: async () => {
-      const { file } = upload
-      if (!file) throw new Error('No file selected')
-
+    mutationFn: async ({ file, imageId }: { file: File; imageId: string }) => {
       const token = await getToken()
       if (!token) throw new Error('No auth token')
 
-      setIsUploading(true)
-      setUploadProgress(0)
+      onProgress?.({ imageId, progress: 0 })
 
       // Get presigned URL
       const { upload_url, file_path } = await api.upload.getPresignedUrl(
@@ -30,7 +40,7 @@ export function useUpload() {
         file.type
       )
 
-      setUploadProgress(20)
+      onProgress?.({ imageId, progress: 20 })
 
       // Upload file directly to storage
       const uploadResponse = await fetch(upload_url, {
@@ -45,28 +55,90 @@ export function useUpload() {
         throw new Error('Failed to upload file')
       }
 
-      setUploadProgress(100)
-      setUploadedPath(file_path)
+      onProgress?.({ imageId, progress: 100 })
 
-      return file_path
+      return { imageId, filePath: file_path }
     },
-    onSettled: () => {
-      setIsUploading(false)
+    onSuccess: (result) => {
+      onSuccess?.(result)
+    },
+    onError: (error, variables) => {
+      onError?.(variables.imageId, error as Error)
     },
   })
 }
 
-export function useValidation() {
+/**
+ * Hook for uploading multiple images in parallel
+ * Uses Promise.all for concurrent uploads (async-parallel pattern)
+ */
+export function useMultiUpload(options: UseUploadOptions = {}) {
   const { getToken } = useAuth()
-  const { setValidationResult } = useAppStore()
+  const { onProgress, onSuccess, onError } = options
 
   return useMutation({
-    mutationFn: async (imagePath: string) => {
+    mutationFn: async (files: Array<{ file: File; imageId: string }>) => {
+      const token = await getToken()
+      if (!token) throw new Error('No auth token')
+
+      // Upload all files in parallel (async-parallel pattern from Vercel best practices)
+      const uploadPromises = files.map(async ({ file, imageId }) => {
+        try {
+          onProgress?.({ imageId, progress: 0 })
+
+          const { upload_url, file_path } = await api.upload.getPresignedUrl(
+            token,
+            file.name,
+            file.type
+          )
+
+          onProgress?.({ imageId, progress: 20 })
+
+          const uploadResponse = await fetch(upload_url, {
+            method: 'PUT',
+            body: file,
+            headers: {
+              'Content-Type': file.type,
+            },
+          })
+
+          if (!uploadResponse.ok) {
+            throw new Error('Failed to upload file')
+          }
+
+          onProgress?.({ imageId, progress: 100 })
+          onSuccess?.({ imageId, filePath: file_path })
+
+          return { imageId, filePath: file_path, success: true as const }
+        } catch (error) {
+          onError?.(imageId, error as Error)
+          return { imageId, error: error as Error, success: false as const }
+        }
+      })
+
+      const results = await Promise.all(uploadPromises)
+      const successful = results.filter((r) => r.success)
+      const failed = results.filter((r) => !r.success)
+
+      return { results, successful, failed }
+    },
+  })
+}
+
+/**
+ * Hook for server-side image validation
+ * Removed Zustand dependency - returns result directly
+ */
+export function useValidation() {
+  const { getToken } = useAuth()
+
+  return useMutation({
+    mutationFn: async (imagePath: string): Promise<ValidationResult> => {
       const token = await getToken()
       if (!token) throw new Error('No auth token')
 
       const result = await api.validate.image(token, imagePath)
-      setValidationResult(result)
+
       return result
     },
   })
