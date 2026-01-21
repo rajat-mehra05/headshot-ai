@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 /**
  * Sync state with localStorage
@@ -17,11 +17,13 @@ export function useLocalStorage<T>(
     try {
       const item = window.localStorage.getItem(key)
       return item ? (JSON.parse(item) as T) : initialValue
-    } catch (error) {
-      console.warn(`[useLocalStorage] Error reading key "${key}":`, error)
+    } catch {
       return initialValue
     }
   })
+
+  // Track the previous key to avoid writing stale values when key changes
+  const prevKeyRef = useRef(key)
 
   // Update localStorage when state changes
   useEffect(() => {
@@ -29,11 +31,18 @@ export function useLocalStorage<T>(
       return
     }
 
-    try {
-      window.localStorage.setItem(key, JSON.stringify(storedValue))
-    } catch (error) {
-      console.warn(`[useLocalStorage] Error setting key "${key}":`, error)
+    // Only write to localStorage if the key hasn't changed
+    // When key changes, storedValue may still be stale from the previous key
+    if (prevKeyRef.current === key) {
+      try {
+        window.localStorage.setItem(key, JSON.stringify(storedValue))
+      } catch {
+        // Silently ignore storage errors (e.g., quota exceeded)
+      }
     }
+
+    // Update the ref to track the current key
+    prevKeyRef.current = key
   }, [key, storedValue])
 
   // Setter function supporting both value and function updates
@@ -56,8 +65,8 @@ export function useLocalStorage<T>(
     try {
       window.localStorage.removeItem(key)
       setStoredValue(initialValue)
-    } catch (error) {
-      console.warn(`[useLocalStorage] Error removing key "${key}":`, error)
+    } catch {
+      // Silently ignore storage errors
     }
   }, [key, initialValue])
 

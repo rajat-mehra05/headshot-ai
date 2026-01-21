@@ -67,6 +67,7 @@ export function ImagePreviewGrid({
             className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
             onClick={() => onRemoveImage(image)}
             disabled={disabled}
+            aria-label={`Remove ${image.file.name || 'image'}`}
           >
             <X className="h-4 w-4" />
           </Button>

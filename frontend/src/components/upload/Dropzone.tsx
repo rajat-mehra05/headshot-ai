@@ -31,10 +31,6 @@ export function Dropzone({
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
       if (acceptedFiles.length === 0) return
-      console.log('[Dropzone] Files dropped:', {
-        count: acceptedFiles.length,
-        files: acceptedFiles.map((f) => ({ name: f.name, size: f.size })),
-      })
       onFilesSelected(acceptedFiles)
     },
     [onFilesSelected]

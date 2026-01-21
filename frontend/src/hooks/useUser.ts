@@ -16,11 +16,6 @@ export function useUser() {
       if (!token) throw new Error('No auth token')
 
       const user = await api.users.me(token)
-      console.log('[useUser] User fetched:', {
-        id: user.id,
-        email: user.email,
-        credits: user.credits_balance,
-      })
 
       return user
     },

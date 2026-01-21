@@ -28,8 +28,6 @@ export function useUpload(options: UseUploadOptions = {}) {
 
   return useMutation({
     mutationFn: async ({ file, imageId }: { file: File; imageId: string }) => {
-      console.log('[useUpload] Starting upload:', { fileName: file.name, imageId })
-
       const token = await getToken()
       if (!token) throw new Error('No auth token')
 
@@ -59,15 +57,12 @@ export function useUpload(options: UseUploadOptions = {}) {
 
       onProgress?.({ imageId, progress: 100 })
 
-      console.log('[useUpload] Upload complete:', { fileName: file.name, filePath: file_path })
-
       return { imageId, filePath: file_path }
     },
     onSuccess: (result) => {
       onSuccess?.(result)
     },
     onError: (error, variables) => {
-      console.error('[useUpload] Upload failed:', { imageId: variables.imageId, error })
       onError?.(variables.imageId, error as Error)
     },
   })
@@ -83,11 +78,6 @@ export function useMultiUpload(options: UseUploadOptions = {}) {
 
   return useMutation({
     mutationFn: async (files: Array<{ file: File; imageId: string }>) => {
-      console.log('[useMultiUpload] Starting batch upload:', {
-        count: files.length,
-        files: files.map((f) => f.file.name),
-      })
-
       const token = await getToken()
       if (!token) throw new Error('No auth token')
 
@@ -119,17 +109,8 @@ export function useMultiUpload(options: UseUploadOptions = {}) {
           onProgress?.({ imageId, progress: 100 })
           onSuccess?.({ imageId, filePath: file_path })
 
-          console.log('[useMultiUpload] Individual upload complete:', {
-            fileName: file.name,
-            filePath: file_path,
-          })
-
           return { imageId, filePath: file_path, success: true as const }
         } catch (error) {
-          console.error('[useMultiUpload] Individual upload failed:', {
-            fileName: file.name,
-            error,
-          })
           onError?.(imageId, error as Error)
           return { imageId, error: error as Error, success: false as const }
         }
@@ -138,12 +119,6 @@ export function useMultiUpload(options: UseUploadOptions = {}) {
       const results = await Promise.all(uploadPromises)
       const successful = results.filter((r) => r.success)
       const failed = results.filter((r) => !r.success)
-
-      console.log('[useMultiUpload] Batch complete:', {
-        total: files.length,
-        successful: successful.length,
-        failed: failed.length,
-      })
 
       return { results, successful, failed }
     },
@@ -159,18 +134,10 @@ export function useValidation() {
 
   return useMutation({
     mutationFn: async (imagePath: string): Promise<ValidationResult> => {
-      console.log('[useValidation] Validating image:', { imagePath })
-
       const token = await getToken()
       if (!token) throw new Error('No auth token')
 
       const result = await api.validate.image(token, imagePath)
-
-      console.log('[useValidation] Validation result:', {
-        imagePath,
-        passed: result.passed,
-        qualityScore: result.quality_score,
-      })
 
       return result
     },

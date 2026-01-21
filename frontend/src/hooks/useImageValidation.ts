@@ -47,7 +47,6 @@ export function useImageValidation({
     async (files: File[]) => {
       const availableSlots = MAX_IMAGES - currentImageCount
       if (availableSlots <= 0) {
-        console.log('[useImageValidation] No slots available, max images reached')
         toast.warning('Maximum images reached', {
           description: `You can only upload up to ${MAX_IMAGES} images.`,
         })
@@ -76,7 +75,6 @@ export function useImageValidation({
       // Show toast for duplicates
       if (duplicateFiles.length > 0) {
         const duplicateNames = duplicateFiles.map((f) => f.name).join(', ')
-        console.log('[useImageValidation] Duplicate images detected:', duplicateNames)
 
         toast.info(
           duplicateFiles.length === 1
@@ -93,7 +91,6 @@ export function useImageValidation({
 
       // If no unique files remain, exit early
       if (uniqueFiles.length === 0) {
-        console.log('[useImageValidation] No new unique files to process')
         return
       }
 
@@ -107,14 +104,6 @@ export function useImageValidation({
           description: `Only ${availableSlots} slot${availableSlots > 1 ? 's' : ''} available. Maximum is ${MAX_IMAGES} images.`,
         })
       }
-
-      console.log('[useImageValidation] Processing files:', {
-        total: files.length,
-        duplicates: duplicateFiles.length,
-        unique: uniqueFiles.length,
-        processing: filesToProcess.length,
-        available: availableSlots,
-      })
 
       // Create initial image entries with pending status
       const newImages: ValidatedImage[] = filesToProcess.map((file) => ({
@@ -132,10 +121,6 @@ export function useImageValidation({
         onUpdateImage(image.id, { validationStatus: 'validating' })
 
         const result = await validateImageClient(image.file)
-        console.log('[useImageValidation] Client validation result:', {
-          fileName: image.file.name,
-          result,
-        })
 
         if (!result.isValid) {
           onUpdateImage(image.id, {
@@ -159,13 +144,11 @@ export function useImageValidation({
   const validateOnServer = useCallback(
     async (image: ValidatedImage): Promise<ValidationResult | null> => {
       if (!image.uploadedPath) {
-        console.warn('[useImageValidation] No uploaded path for server validation')
         return null
       }
 
       const token = await getToken()
       if (!token) {
-        console.error('[useImageValidation] No auth token for server validation')
         return null
       }
 
@@ -176,10 +159,8 @@ export function useImageValidation({
       try {
         onUpdateImage(image.id, { validationStatus: 'validating' })
 
-        const result = await api.validate.image(token, image.uploadedPath)
-        console.log('[useImageValidation] Server validation result:', {
-          fileName: image.file.name,
-          result,
+        const result = await api.validate.image(token, image.uploadedPath, {
+          signal: abortController.signal,
         })
 
         onUpdateImage(image.id, {
@@ -190,11 +171,9 @@ export function useImageValidation({
         return result
       } catch (error) {
         if (error instanceof Error && error.name === 'AbortError') {
-          console.log('[useImageValidation] Server validation aborted:', image.file.name)
           return null
         }
 
-        console.error('[useImageValidation] Server validation error:', error)
         onUpdateImage(image.id, {
           validationStatus: 'invalid',
           validationError: 'Server validation failed. Please try again.',
@@ -227,8 +206,6 @@ export function useImageValidation({
       // Remove from state
       const filtered = images.filter((img) => img.id !== image.id)
       setImages(filtered)
-
-      console.log('[useImageValidation] Image removed:', image.file.name)
     },
     []
   )

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useUser as useClerkUser } from '@clerk/clerk-react'
 import { Spinner } from '@/components/ui/spinner'
@@ -36,6 +36,14 @@ export default function GeneratePage() {
   // Local state (replacing Zustand)
   const [currentStep, setCurrentStep] = useState<Step>(1)
   const [uploadedImages, setUploadedImages] = useState<ValidatedImage[]>([])
+
+  // Ref to track latest uploadedImages for cleanup on unmount
+  const uploadedImagesRef = useRef<ValidatedImage[]>(uploadedImages)
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    uploadedImagesRef.current = uploadedImages
+  }, [uploadedImages])
   const [selectedBackground, setSelectedBackground] = useState<BackgroundId>('professional-office')
   const [selectedStyle, setSelectedStyle] = useState<StyleId>('business-casual')
   const [selectedClothingColor, setSelectedClothingColor] = useState<ClothingColorId>('random')
@@ -55,7 +63,6 @@ export default function GeneratePage() {
     setSelectedBackground(savedPreferences.background)
     setSelectedStyle(savedPreferences.style)
     setSelectedClothingColor(savedPreferences.clothingColor)
-    console.log('[GeneratePage] Loaded saved preferences:', savedPreferences)
   }, [])
 
   // Save preferences when they change
@@ -79,7 +86,6 @@ export default function GeneratePage() {
     if (user) {
       const defaultQty = isFreeUser ? 1 : 5
       setNumberOfResults(defaultQty)
-      console.log('[GeneratePage] Credits loaded:', { userCredits, isFreeUser, defaultQty })
     }
   }, [user, isFreeUser, userCredits])
 
@@ -122,10 +128,6 @@ export default function GeneratePage() {
   // Handle file selection
   const handleFilesSelected = useCallback(
     (files: File[]) => {
-      console.log('[GeneratePage] Files selected:', {
-        count: files.length,
-        files: files.map((f) => ({ name: f.name, size: f.size })),
-      })
       processFiles(files)
     },
     [processFiles]
@@ -142,13 +144,11 @@ export default function GeneratePage() {
   // Handle step navigation
   const handleNextStep = () => {
     const newStep = Math.min(currentStep + 1, 4) as Step
-    console.log('[GeneratePage] Step changed:', { from: currentStep, to: newStep })
     setCurrentStep(newStep)
   }
 
   const handlePrevStep = () => {
     const newStep = Math.max(currentStep - 1, 1) as Step
-    console.log('[GeneratePage] Step changed:', { from: currentStep, to: newStep })
     setCurrentStep(newStep)
   }
 
@@ -161,50 +161,43 @@ export default function GeneratePage() {
     setIsGenerating(true)
     setError('')
 
-    console.log('[GeneratePage] Generation started:', {
-      imageCount: validImages.length,
-      background: selectedBackground,
-      style: selectedStyle,
-      clothingColor: selectedClothingColor,
-      quantity: numberOfResults,
-      creditsAvailable: userCredits,
-    })
-
     try {
       // Upload all valid images first (if not already uploaded)
       const imagesToUpload = validImages
         .filter((img) => !img.uploadedPath)
         .map((img) => ({ file: img.file, imageId: img.id }))
 
+      let primaryUploadedPath: string | undefined
+
       if (imagesToUpload.length > 0) {
-        console.log('[GeneratePage] Uploading images:', imagesToUpload.length)
-        await multiUpload.mutateAsync(imagesToUpload)
+        // Capture the mutation result directly to avoid stale state
+        const batchResult = await multiUpload.mutateAsync(imagesToUpload)
+        // Find the uploaded path from the first successful upload
+        const firstSuccessful = batchResult.successful[0]
+        if (firstSuccessful) {
+          primaryUploadedPath = firstSuccessful.filePath
+        }
       }
 
-      // Get the first valid image's path for the job
-      const primaryImage = uploadedImages.find(
-        (img) => img.validationStatus === 'valid' && img.uploadedPath
-      )
+      // If no uploads were performed, fall back to already-uploaded images
+      if (!primaryUploadedPath) {
+        const alreadyUploaded = validImages.find((img) => img.uploadedPath)
+        primaryUploadedPath = alreadyUploaded?.uploadedPath
+      }
 
-      if (!primaryImage?.uploadedPath) {
+      if (!primaryUploadedPath) {
         throw new Error('No valid uploaded image found')
       }
 
       // Create the job
       const job = await createJobMutation.mutateAsync({
-        input_image_path: primaryImage.uploadedPath,
+        input_image_path: primaryUploadedPath,
         style_preset: selectedStyle,
         background_option: selectedBackground,
       })
 
-      console.log('[GeneratePage] Generation API response:', {
-        success: true,
-        jobId: job.id,
-      })
-
       setCurrentJobId(job.id)
     } catch (err) {
-      console.error('[GeneratePage] Generation failed:', err)
       setError(err instanceof Error ? err.message : 'Generation failed')
       setIsGenerating(false)
     }
@@ -212,13 +205,13 @@ export default function GeneratePage() {
 
   // Handle start over
   const handleStartOver = () => {
-    cleanupAllPreviews(uploadedImages)
+    cleanupAllPreviews(uploadedImagesRef.current)
     setUploadedImages([])
+    uploadedImagesRef.current = []
     setCurrentStep(1)
     setIsGenerating(false)
     setError('')
     setCurrentJobId(null)
-    console.log('[GeneratePage] Reset to initial state')
   }
 
   // Auto-advance when job completes
@@ -231,9 +224,9 @@ export default function GeneratePage() {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      cleanupAllPreviews(uploadedImages)
+      cleanupAllPreviews(uploadedImagesRef.current)
     }
-  }, [])
+  }, [cleanupAllPreviews])
 
   // Loading state
   if (!isLoaded) {
